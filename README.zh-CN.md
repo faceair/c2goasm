@@ -38,6 +38,8 @@ kernel.s（Go Plan 9 汇编，编译进你的包）
 
 ### 一个可运行的最小示例
 
+完整可运行的示例代码在 [`examples/simd/`](examples/simd/) —— 双架构的转换汇编已提交，无需 C 工具链即可直接 `go test`。下面的代码就是同一个示例的逐步说明。
+
 用 C 写两个内核：一个求和（展示返回值形态），一个逐元素相加（展示输出指针形态）：
 
 ```c
@@ -152,7 +154,7 @@ CGO_ENABLED=0 go test ./...
 
 在 Apple M1 Pro（arm64/NEON）上，对 4 MiB 输入实测：`sum_u32` 比纯 Go 标量循环快约 6 倍，`add_u32` 约 3 倍，两种内核都是 0 分配、`CGO_ENABLED=0` 下运行。AMD64（AVX2，gcc 15）上同样有 2–3 倍提升。
 
-具体倍数取决于 CPU 微架构与内存带宽：求和这类带宽敏感操作，在内存带宽充裕的机器上提升更明显；逐元素运算则受限于读写总量。`simd_bench_test.go` 里的 benchmark（generic 与 SIMD 配对、报告 speedup）可以直接在你的目标硬件上复测。这套"能力检测 + 标量回退 + speedup 对比"的组织方式，已经在生产项目（如 GuanceDB 的 executor）中落地。
+具体倍数取决于 CPU 微架构与内存带宽：求和这类带宽敏感操作，在内存带宽充裕的机器上提升更明显；逐元素运算则受限于读写总量。[`examples/simd/simd_bench_test.go`](examples/simd/simd_bench_test.go) 里的 benchmark（generic 与 SIMD 配对、报告 speedup）可以直接在你的目标硬件上复测。这套"标量基线 + build tag 回退 + speedup 对比"的组织方式，已经在生产项目（如 GuanceDB 的 executor）中落地。
 
 ## 直接调用（direct-safe leaf）的边界
 
@@ -304,6 +306,7 @@ ${C2GOASM_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/c2goasm}/sources
 ```text
 arch/                 平台 C ABI 与寄存器描述
 cmd/c2goasm/          CLI
+examples/simd/        可运行的 SIMD 示例（C 内核 → 转换汇编 → Go API）
 internal/asm/         解析、IR、分析、重写、direct 认证、发射
 internal/asm2plan9s/  指令汇编、反汇编与字节回退
 nativecall/           标准 cgo 入口、分配器与 pthread 边界

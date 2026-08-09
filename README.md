@@ -38,6 +38,8 @@ kernel.s（Go Plan 9 汇编，编译进你的包）
 
 ### A minimal runnable example
 
+The complete runnable example lives in [`examples/simd/`](examples/simd/) — converted assembly for both architectures is committed there, so you can `go test` it without a C toolchain. The code below is the same example, step by step.
+
 Write two kernels in C: a sum (showing the return-value form) and an element-wise add (showing the output-pointer form):
 
 ```c
@@ -154,7 +156,7 @@ CGO_ENABLED=0 go test ./...
 
 On an Apple M1 Pro (arm64/NEON) with 4 MiB inputs, `sum_u32` is roughly 6x faster than the plain Go scalar loop and `add_u32` about 3x, with zero allocations and `CGO_ENABLED=0` throughout. AMD64 (AVX2, GCC 15) shows a similar 2–3x improvement.
 
-Exact numbers depend on the CPU microarchitecture and memory bandwidth: bandwidth-sensitive reductions gain more where bandwidth is plentiful, while element-wise ops are bounded by total bytes read and written. The benchmark in `simd_bench_test.go` pairs generic against SIMD and reports a speedup metric, so you can re-measure on your target hardware. This "capability check + scalar fallback + speedup comparison" layout is already in production use, e.g. in the GuanceDB executor.
+Exact numbers depend on the CPU microarchitecture and memory bandwidth: bandwidth-sensitive reductions gain more where bandwidth is plentiful, while element-wise ops are bounded by total bytes read and written. The benchmark in [`examples/simd/simd_bench_test.go`](examples/simd/simd_bench_test.go) pairs generic against SIMD and reports a speedup metric, so you can re-measure on your target hardware. This "scalar baseline + build-tag fallback + speedup comparison" layout is already in production use, e.g. in the GuanceDB executor.
 
 ## Direct-safe leaf: the boundary
 
@@ -306,6 +308,7 @@ ${C2GOASM_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/c2goasm}/sources
 ```text
 arch/                 Platform C ABI and register descriptions
 cmd/c2goasm/          CLI
+examples/simd/        Runnable SIMD example (C kernels -> converted asm -> Go API)
 internal/asm/         Parsing, IR, analysis, rewriting, direct certification, emission
 internal/asm2plan9s/  Instruction assembly, decoding, and byte fallback
 nativecall/           Standard-cgo native entry, allocator, and pthread boundary
