@@ -2,3 +2,4 @@
 *.o
 *.test
 .DS_Store
+examples/simd/c/*.s
