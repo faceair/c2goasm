@@ -1,0 +1,179 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION_FILE: go.mod
+
+jobs:
+  go:
+    name: Go unit, build, and vet
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ env.GO_VERSION_FILE }}
+      - name: Run unit tests
+        run: go test ./...
+      - name: Build all packages
+        run: go build ./...
+      - name: Vet all packages
+        run: go vet ./...
+      - name: Build converter without cgo
+        run: CGO_ENABLED=0 go build ./cmd/c2goasm
+
+  direct-leaf-arm64:
+    name: Direct leaf (Darwin arm64)
+    runs-on: macos-14
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run direct leaf E2E
+        run: scripts/direct-leaf-e2e.sh
+
+  direct-leaf-amd64:
+    name: Direct leaf (Linux amd64)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run direct leaf E2E
+        run: scripts/direct-leaf-e2e.sh
+
+  quickjs-arm64:
+    name: QuickJS (Darwin arm64)
+    runs-on: macos-14
+    env:
+      C2GOASM_CACHE_DIR: ${{ github.workspace }}/.cache/c2goasm
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Cache upstream source
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/c2goasm-cache/sources
+          key: c2goasm-quickjs-b376e839b322978313d929fd20663b11ba58b75df5a46c126dd19ea2fa70ad2a-${{ runner.os }}-${{ runner.arch }}
+      - name: Run QuickJS E2E
+        run: scripts/quickjs-e2e.sh
+
+  quickjs-amd64:
+    name: QuickJS (Linux amd64)
+    runs-on: ubuntu-24.04
+    env:
+      C2GOASM_CACHE_DIR: ${{ github.workspace }}/.cache/c2goasm
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Cache upstream source
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/c2goasm-cache/sources
+          key: c2goasm-quickjs-b376e839b322978313d929fd20663b11ba58b75df5a46c126dd19ea2fa70ad2a-${{ runner.os }}-${{ runner.arch }}
+      - name: Run QuickJS E2E
+        run: scripts/quickjs-e2e.sh
+
+  pcre2-arm64:
+    name: PCRE2 (Darwin arm64)
+    runs-on: macos-14
+    env:
+      C2GOASM_CACHE_DIR: ${{ github.workspace }}/.cache/c2goasm
+      C2GOASM_TARGET: arm64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Cache upstream source
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/c2goasm-cache/sources
+          key: c2goasm-pcre2-c08ae2388ef333e8403e670ad70c0a11f1eed021fd88308d7e02f596fcd9dc16-${{ runner.os }}-${{ runner.arch }}
+      - name: Run PCRE2 E2E
+        run: scripts/pcre2-e2e.sh
+
+  pcre2-amd64:
+    name: PCRE2 (Linux amd64)
+    runs-on: ubuntu-24.04
+    env:
+      C2GOASM_CACHE_DIR: ${{ github.workspace }}/.cache/c2goasm
+      C2GOASM_TARGET: amd64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Cache upstream source
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/c2goasm-cache/sources
+          key: c2goasm-pcre2-c08ae2388ef333e8403e670ad70c0a11f1eed021fd88308d7e02f596fcd9dc16-${{ runner.os }}-${{ runner.arch }}
+      - name: Run PCRE2 E2E
+        run: scripts/pcre2-e2e.sh
+
+  sqlite-arm64:
+    name: SQLite (Darwin arm64)
+    runs-on: macos-14
+    env:
+      C2GOASM_CACHE_DIR: ${{ github.workspace }}/.cache/c2goasm
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Cache upstream source
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/c2goasm-cache/sources
+          key: c2goasm-sqlite-d9a15a42db7c78f88fe3d3c5945acce2f4bfe9e4da9f685cd19f6ea1d40aa884-${{ runner.os }}-${{ runner.arch }}
+      - name: Run SQLite E2E
+        run: scripts/sqlite-e2e.sh
+
+  cutils-amd64:
+    name: QuickJS cutils (Linux amd64)
+    runs-on: ubuntu-24.04
+    env:
+      C2GOASM_CACHE_DIR: ${{ github.workspace }}/.cache/c2goasm
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Cache upstream source
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/c2goasm-cache/sources
+          key: c2goasm-quickjs-b376e839b322978313d929fd20663b11ba58b75df5a46c126dd19ea2fa70ad2a-${{ runner.os }}-${{ runner.arch }}
+      - name: Run cutils E2E
+        run: scripts/amd64-cutils-e2e.sh
