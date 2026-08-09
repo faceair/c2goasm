@@ -28,6 +28,13 @@ The converted `.s` files are committed, so the example builds and tests out of
 the box without a C compiler. `generate.sh` regenerates them when the C source
 or the converter changes.
 
+This directory is its own Go module (`example.com/simd`), nested under the
+main repository. That keeps the main module's `go vet ./...` from tripping
+over the converted native bodies: a converted `_c2goasm_native_*` symbol is
+defined in assembly with a C ABI frame and has no Go declaration, which
+`asmdecl` would otherwise report. The full-graph E2E modules work the same
+way.
+
 ## Run
 
 ```bash
