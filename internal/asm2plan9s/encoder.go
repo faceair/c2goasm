@@ -126,12 +126,40 @@ func (e *Encoder) BeginFunction(fn *asm.Function, desc arch.Descriptor) error {
 // validateReservedScratch makes the x86 call-lowering contract explicit.
 // GCC's interprocedural register allocation may keep live values in R11 across
 // known direct calls, so call lowering may use R11 only when the input was
-// compiled with -ffixed-r11.
+// compiled with -ffixed-r11. Direct-only leaves do not use that scratch path
+// and may keep R11 as a caller-saved working register.
 func validateReservedScratch(funcs []*asm.Function, desc arch.Descriptor) error {
 	if desc.Name() != "amd64" {
 		return nil
 	}
+	labels := make(map[string]bool)
 	for _, function := range funcs {
+		for _, node := range function.Body {
+			switch node := node.(type) {
+			case *asm.LabelLine:
+				labels[node.Name] = true
+			case *asm.Inst:
+				if node.Label != "" {
+					labels[node.Label] = true
+				}
+			}
+		}
+	}
+	for _, function := range funcs {
+		needsScratch := false
+		for _, node := range function.Body {
+			instruction, ok := node.(*asm.Inst)
+			if !ok {
+				continue
+			}
+			if instructionNeedsReservedScratch(instruction, labels, desc) {
+				needsScratch = true
+				break
+			}
+		}
+		if !needsScratch {
+			continue
+		}
 		for _, node := range function.Body {
 			var line int
 			var text string
@@ -158,6 +186,20 @@ func validateReservedScratch(funcs []*asm.Function, desc arch.Descriptor) error 
 		}
 	}
 	return nil
+}
+
+func instructionNeedsReservedScratch(instruction *asm.Inst, labels map[string]bool, desc arch.Descriptor) bool {
+	if symbol, ok := nativeControlSymbol(instruction, desc); ok {
+		return !labels[symbol.Name]
+	}
+	if instruction.Opcode != "call" && instruction.Opcode != "jmp" {
+		return false
+	}
+	if len(instruction.Operands) != 1 {
+		return false
+	}
+	_, memory := instruction.Operands[0].(asm.Memory)
+	return memory
 }
 
 func isReservedR11(name string) bool {

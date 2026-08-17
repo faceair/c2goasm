@@ -253,7 +253,14 @@ func TestBeginFunctionsRejectsAMD64ReservedScratch(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			function := &asm.Function{Name: "bad", Body: []asm.Node{test.node}}
+			function := &asm.Function{Name: "bad", Body: []asm.Node{
+				test.node,
+				&asm.Inst{
+					Opcode:   "call",
+					Operands: []asm.Operand{asm.Symbol{Name: "bar"}},
+					Line:     28,
+				},
+			}}
 			err := NewEncoder(arch.AMD64()).BeginFunctions([]*asm.Function{function}, arch.AMD64())
 			if err == nil || !strings.Contains(err.Error(), "-ffixed-r11") ||
 				!strings.Contains(err.Error(), "function bad line 27") {
@@ -263,6 +270,51 @@ func TestBeginFunctionsRejectsAMD64ReservedScratch(t *testing.T) {
 	}
 	if textUsesReservedR11("MOVQ R110, AX") {
 		t.Error("R110 was mistaken for the reserved R11 register")
+	}
+}
+
+func TestBeginFunctionsAllowsR11InDirectOnlyLeaf(t *testing.T) {
+	function := &asm.Function{
+		Name: "leaf",
+		Body: []asm.Node{
+			&asm.Inst{
+				Raw:      "mov r11, rax",
+				Operands: []asm.Operand{asm.Register{Name: "R11"}, asm.Register{Name: "RAX"}},
+				Line:     27,
+			},
+			&asm.Inst{
+				Opcode:   "jmp",
+				Operands: []asm.Operand{asm.Symbol{Name: "leaf_local"}},
+				Line:     28,
+			},
+			&asm.LabelLine{Name: "leaf_local"},
+			&asm.Inst{Opcode: "ret", Raw: "ret", Line: 29},
+		},
+	}
+	if err := validateReservedScratch([]*asm.Function{function}, arch.AMD64()); err != nil {
+		t.Fatalf("direct-only leaf rejected: %v", err)
+	}
+}
+
+func TestBeginFunctionsRejectsR11WithMemoryIndirectCall(t *testing.T) {
+	function := &asm.Function{
+		Name: "caller",
+		Body: []asm.Node{
+			&asm.Inst{
+				Raw:      "mov r11, rax",
+				Operands: []asm.Operand{asm.Register{Name: "R11"}, asm.Register{Name: "RAX"}},
+				Line:     27,
+			},
+			&asm.Inst{
+				Opcode:   "call",
+				Operands: []asm.Operand{asm.Memory{Base: "R12"}},
+				Line:     28,
+			},
+		},
+	}
+	if err := validateReservedScratch([]*asm.Function{function}, arch.AMD64()); err == nil ||
+		!strings.Contains(err.Error(), "-ffixed-r11") {
+		t.Fatalf("memory-indirect caller error = %v", err)
 	}
 }
 
