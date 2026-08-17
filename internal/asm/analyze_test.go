@@ -102,6 +102,54 @@ func TestFindFunctionsBeginComments(t *testing.T) {
 	}
 }
 
+func TestFindFunctionsBeginCommentsWithUnprefixedELFLabels(t *testing.T) {
+	lines := []string{
+		".globl int64_neon_sum // -- Begin function int64_neon_sum",
+		"int64_neon_sum:",
+		"add x0, x0, x1",
+		"ret",
+		".size int64_neon_sum, .-int64_neon_sum",
+		".globl int64_neon_min // -- Begin function int64_neon_min",
+		"int64_neon_min:",
+		"sub x0, x0, x1",
+		"ret",
+		".size int64_neon_min, .-int64_neon_min",
+	}
+	functions, err := analyze(parseProgram(t, lines, "arm64"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(functions) != 2 {
+		t.Fatalf("got %d functions, want 2", len(functions))
+	}
+	if got := instructionTexts(functions[0].Body); !reflect.DeepEqual(got, []string{"add x0, x0, x1", "ret"}) {
+		t.Fatalf("first function body = %q", got)
+	}
+	if got := instructionTexts(functions[1].Body); !reflect.DeepEqual(got, []string{"sub x0, x0, x1", "ret"}) {
+		t.Fatalf("second function body = %q", got)
+	}
+}
+
+func TestFindFunctionsDedupePrefixedBeginCommentAndELFSize(t *testing.T) {
+	lines := []string{
+		".globl _foo // -- Begin function _foo",
+		"_foo:",
+		"add x0, x0, x1",
+		"ret",
+		".size _foo, .-_foo",
+	}
+	functions, err := analyze(parseProgram(t, lines, "amd64"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(functions) != 1 || functions[0].Name != "_foo" {
+		t.Fatalf("functions = %+v, want one _foo function", functions)
+	}
+	if got := instructionTexts(functions[0].Body); !reflect.DeepEqual(got, []string{"add x0, x0, x1", "ret"}) {
+		t.Fatalf("function body = %q", got)
+	}
+}
+
 func TestFindFunctionsDedupe(t *testing.T) {
 	lines := []string{
 		".globl foo",

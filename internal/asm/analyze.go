@@ -135,7 +135,28 @@ func findFunctions(nodes []Node) []globalInfo {
 	for i, g := range order {
 		order[i].labelIndex = findLabelIndex(nodes, g.name)
 	}
-	return order
+	// A Begin function comment and an ELF .size directive can spell the
+	// same symbol with different platform-prefix assumptions. If both
+	// candidates resolve to one label, retain the first candidate and merge
+	// the later boundary/export information into it.
+	byLabel := make(map[int]int, len(order))
+	result := make([]globalInfo, 0, len(order))
+	for _, function := range order {
+		if function.labelIndex < 0 {
+			result = append(result, function)
+			continue
+		}
+		if index, ok := byLabel[function.labelIndex]; ok {
+			if function.endIndex >= 0 {
+				result[index].endIndex = function.endIndex
+			}
+			result[index].export = result[index].export || function.export
+			continue
+		}
+		byLabel[function.labelIndex] = len(result)
+		result = append(result, function)
+	}
+	return result
 }
 
 func directiveSymbol(args []string) string {
@@ -189,6 +210,18 @@ func findLabelIndex(nodes []Node, name string) int {
 	for i, node := range nodes {
 		if l, ok := node.(*LabelLine); ok && l.Name == prefixed {
 			return i
+		}
+	}
+	// ELF clang output may include a macOS-style "Begin function"
+	// comment while keeping the label unprefixed. findFunctions prefixes
+	// the comment name to preserve C symbols that themselves start with
+	// an underscore, so try the unprefixed spelling as a final fallback.
+	if strings.HasPrefix(name, "_") {
+		unprefixed := strings.TrimPrefix(name, "_")
+		for i, node := range nodes {
+			if l, ok := node.(*LabelLine); ok && l.Name == unprefixed {
+				return i
+			}
 		}
 	}
 	return -1
