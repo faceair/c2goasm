@@ -866,6 +866,11 @@ func TestRewriteAMD64RIPRelativeReferences(t *testing.T) {
 		"add eax, DWORD PTR payload[rip]",
 		"movdqa xmm1, XMMWORD PTR payload[rip]",
 		"cmp DWORD PTR payload[rip], eax",
+		"vpbroadcastq ymm3, QWORD PTR payload[rip]",
+		"vbroadcastsd ymm3, QWORD PTR payload[rip]",
+		"vmovddup xmm2, QWORD PTR payload[rip]",
+		"vmovsd xmm0, QWORD PTR payload[rip]",
+		"vmovdqa ymm1, YMMWORD PTR payload[rip]",
 		"ret",
 		".size foo, .-foo",
 		".section .rodata",
@@ -905,6 +910,11 @@ func TestRewriteAMD64RIPRelativeReferences(t *testing.T) {
 		"ADDL LCDATA1<>+0x8(SB), AX",
 		"MOVO LCDATA1<>+0x8(SB), X1",
 		"CMPL AX, LCDATA1<>+0x8(SB)",
+		"VPBROADCASTQ LCDATA1<>+0x8(SB), Y3",
+		"VBROADCASTSD LCDATA1<>+0x8(SB), Y3",
+		"VMOVDDUP LCDATA1<>+0x8(SB), X2",
+		"VMOVSD LCDATA1<>+0x8(SB), X0",
+		"VMOVDQA LCDATA1<>+0x8(SB), Y1",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("rewritten references:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))

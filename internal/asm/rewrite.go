@@ -370,6 +370,8 @@ func amd64SymbolMnemonic(inst *Inst) (string, bool) {
 		return strings.ToUpper(inst.Opcode), true
 	case "movdqa":
 		return "MOVO", true
+	case "vmovdqa", "vpbroadcastq", "vbroadcastsd", "vmovddup", "vmovsd":
+		return strings.ToUpper(inst.Opcode), true
 	default:
 		return "", false
 	}
